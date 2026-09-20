@@ -2,23 +2,20 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { createInMemoryTaskRepository } = require('./repositories/inMemoryTaskRepository');
 require('dotenv').config();
 
 const app = express();
 const port = Number(process.env.PORT) || 5000;
 const jwtSecret = process.env.JWT_SECRET || 'dev-secret';
+const taskRepository = createInMemoryTaskRepository();
 
 const validStatuses = ['TODO', 'IN_PROGRESS', 'DONE'];
 
 const users = [];
-const tasks = [];
 
 function generateUserId() {
   return users.length ? Math.max(...users.map((user) => user.id)) + 1 : 1;
-}
-
-function generateTaskId() {
-  return tasks.length ? Math.max(...tasks.map((task) => task.id)) + 1 : 1;
 }
 
 function normalizeStatus(status) {
@@ -93,9 +90,7 @@ app.post('/api/login', async (req, res) => {
 });
 
 app.get('/api/tasks', authMiddleware, async (req, res) => {
-  const userTasks = tasks
-    .filter((task) => task.userId === req.user.userId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const userTasks = await taskRepository.listForUser(req.user.userId);
 
   res.json(userTasks);
 });
@@ -107,17 +102,13 @@ app.post('/api/tasks', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Title is required' });
   }
 
-  const task = {
-    id: generateTaskId(),
+  const task = await taskRepository.create({
     userId: req.user.userId,
     title: String(title).trim(),
     description: description || '',
     status: normalizeStatus(status),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  });
 
-  tasks.push(task);
   res.status(201).json(task);
 });
 
@@ -129,16 +120,15 @@ app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Invalid task id' });
   }
 
-  const task = tasks.find((item) => item.id === taskId && item.userId === req.user.userId);
+  const task = await taskRepository.update(taskId, req.user.userId, {
+    title: title !== undefined ? String(title).trim() : undefined,
+    description: description !== undefined ? description : undefined,
+    status: status !== undefined ? normalizeStatus(status) : undefined,
+  });
 
   if (!task) {
     return res.status(404).json({ message: 'Task not found' });
   }
-
-  task.title = title !== undefined ? String(title).trim() : task.title;
-  task.description = description !== undefined ? description : task.description;
-  task.status = status !== undefined ? normalizeStatus(status) : task.status;
-  task.updatedAt = new Date().toISOString();
 
   res.json(task);
 });
@@ -150,13 +140,12 @@ app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Invalid task id' });
   }
 
-  const index = tasks.findIndex((task) => task.id === taskId && task.userId === req.user.userId);
+  const deleted = await taskRepository.remove(taskId, req.user.userId);
 
-  if (index === -1) {
+  if (!deleted) {
     return res.status(404).json({ message: 'Task not found' });
   }
 
-  tasks.splice(index, 1);
   res.json({ message: 'Task deleted' });
 });
 
