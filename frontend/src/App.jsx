@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 const api = axios.create({
@@ -6,6 +6,12 @@ const api = axios.create({
 });
 
 const statusOptions = ['TODO', 'IN_PROGRESS', 'DONE'];
+
+const statusConfig = {
+  TODO: { label: 'To Do' },
+  IN_PROGRESS: { label: 'In Progress' },
+  DONE: { label: 'Done' },
+};
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('taskflow_token') || '');
@@ -127,8 +133,15 @@ function App() {
     return (
       <div className="page-shell">
         <div className="card login-card">
-          <h1>TaskFlow</h1>
-          <p>Sign in to manage your work</p>
+          <div className="brand">
+            <div className="brand-mark">TF</div>
+            <div>
+              <h1>TaskFlow</h1>
+              <p className="eyebrow">Organize. Track. Deliver.</p>
+            </div>
+          </div>
+
+          <p className="login-subtitle">Sign in to manage your work</p>
 
           <form onSubmit={handleLogin} className="stack">
             <label>
@@ -138,6 +151,7 @@ function App() {
                 value={loginForm.username}
                 onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
                 placeholder="admin"
+                autoFocus
               />
             </label>
 
@@ -156,6 +170,8 @@ function App() {
             <button type="submit" disabled={loading}>
               {loading ? 'Signing in...' : 'Login'}
             </button>
+
+            <p className="hint">Demo credentials: admin / admin123</p>
           </form>
         </div>
       </div>
@@ -166,8 +182,9 @@ function App() {
     <div className="page-shell dashboard-shell">
       <aside className="sidebar card">
         <div>
-          <p className="eyebrow">Welcome</p>
+          <p className="eyebrow">Logged in as</p>
           <h2>{user.username}</h2>
+          <p className="user-role">Ready to work</p>
         </div>
 
         <button className="secondary" onClick={handleLogout}>
@@ -208,7 +225,7 @@ function App() {
               >
                 {statusOptions.map((status) => (
                   <option key={status} value={status}>
-                    {status}
+                    {statusConfig[status].label}
                   </option>
                 ))}
               </select>
@@ -240,11 +257,11 @@ function App() {
         <div className="card list-card">
           <div className="list-header">
             <h3>Tasks</h3>
-            <span>{tasks.length} total</span>
+            <span className="task-count">{tasks.length} total</span>
           </div>
 
           {loading && tasks.length === 0 ? (
-            <p>Loading tasks...</p>
+            <p className="empty-state">Loading tasks...</p>
           ) : tasks.length === 0 ? (
             <p className="empty-state">No tasks yet. Add your first one.</p>
           ) : (
@@ -253,7 +270,9 @@ function App() {
                 <article key={task.id} className="task-item">
                   <div className="task-topline">
                     <h4>{task.title}</h4>
-                    <span className={`status-badge ${task.status}`}>{task.status}</span>
+                    <span className={`status-badge ${task.status}`}>
+                      {statusConfig[task.status].label}
+                    </span>
                   </div>
 
                   <p>{task.description || 'No description provided.'}</p>
