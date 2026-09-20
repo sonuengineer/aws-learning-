@@ -1,8 +1,6 @@
 # TaskFlow
 
-A small full-stack TaskFlow app built for AWS deployment practice. It includes a React + Vite frontend and a Node.js + Express backend. The backend uses an in-memory task repository by default, so the complete app can run locally without installing or configuring a database.
-
-Task data is stored only in the backend process and is reset when the backend restarts.
+A small full-stack task management app built for AWS deployment practice. It includes a React + Vite frontend and a Node.js + Express backend with PostgreSQL support. The backend connects to AWS RDS or a local PostgreSQL database.
 
 ## Project structure
 
@@ -17,9 +15,10 @@ taskflow/
 │   └── index.html
 ├── backend/
 │   ├── src/
-│   │   ├── repositories/
+│   │   ├── db.js
 │   │   └── server.js
 │   ├── Dockerfile
+│   ├── schema.sql
 │   ├── .env.example
 │   └── package.json
 ├── .gitignore
@@ -30,32 +29,50 @@ taskflow/
 
 - Node.js 20+
 - npm
+- PostgreSQL 14+ (local or AWS RDS)
 
 ## Backend setup
 
+Create a PostgreSQL database and user:
+
+```bash
+psql -U postgres -d postgres -c "CREATE USER taskflow_user WITH PASSWORD 'your_password';"
+psql -U postgres -d postgres -c "CREATE DATABASE taskflow OWNER taskflow_user;"
+psql -U postgres -d taskflow -f backend/schema.sql
+```
+
+Then configure the backend:
+
 ```bash
 cd taskflow/backend
+cp .env.example .env
+# Edit .env with your database credentials
 npm install
 npm run dev
 ```
 
-No database setup or `.env` file is required for local development. Optional settings are documented in `backend/.env.example`:
+Environment variables (`.env`):
 
 ```env
 PORT=5000
-JWT_SECRET=change_this_secret
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=taskflow
+DB_USER=taskflow_user
+DB_PASSWORD=your_password
+JWT_SECRET=your_jwt_secret_key
 DEFAULT_USERNAME=admin
 DEFAULT_PASSWORD=admin123
 ```
 
 The backend exposes:
 
-- `GET /api/health`
-- `POST /api/login`
-- `GET /api/tasks`
-- `POST /api/tasks`
-- `PUT /api/tasks/:id`
-- `DELETE /api/tasks/:id`
+- `GET /api/health` - Health check with database time
+- `POST /api/login` - User authentication with JWT
+- `GET /api/tasks` - Fetch user tasks
+- `POST /api/tasks` - Create task
+- `PUT /api/tasks/:id` - Update task
+- `DELETE /api/tasks/:id` - Delete task
 
 Default login credentials:
 
@@ -82,7 +99,23 @@ Open the frontend in the browser at:
 http://localhost:5173
 ```
 
-## Production-style Docker build
+## AWS RDS deployment
+
+1. Create an RDS PostgreSQL instance in AWS Console
+2. Update `.env` with your RDS endpoint:
+
+```env
+DB_HOST=your-rds-endpoint.region.rds.amazonaws.com
+DB_PORT=5432
+DB_NAME=taskflow
+DB_USER=taskflow_user
+DB_PASSWORD=your_secure_password
+```
+
+3. Initialize the database by running the backend once
+4. Deploy using Docker or AWS Elastic Beanstalk
+
+## Docker build
 
 Backend:
 
@@ -99,6 +132,7 @@ cd taskflow/frontend
 docker build -t taskflow-frontend .
 docker run -p 80:80 taskflow-frontend
 ```
+
 
 ## Notes
 
